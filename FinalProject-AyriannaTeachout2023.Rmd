@@ -1,0 +1,454 @@
+---
+5title: DataScienceFinal2023
+author: "Ayrianna Teachout"
+date: "2023-12-04"
+output:
+  word_document: default
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Part 1 - Clustering
+
+## K-means Clustering
+
+### Part a - Best value of k using an elbow plot.
+
+```{r}
+library(stats)
+library(ggplot2)
+library(factoextra)
+library(corrplot)
+library(cluster)
+avianmeasurements_data <- read.csv("AvianMeasurements.csv")
+
+```
+
+#### Check for correlation among variables.
+
+The graph below shows there is no correlation between variables.
+
+```{r}
+corrplot(cor(avianmeasurements_data))
+```
+
+#### Elbow Plot
+
+```{r}
+
+df <- scale(avianmeasurements_data)
+set.seed(123)
+
+# Sample 10 rows from the scaled data
+avia <- sample(1:nrow(df), 10)
+avia1 <- df[avia,]
+
+distE <- dist(avia1, method='euclidean')
+print(round(as.matrix(distE)[1:4, 1:4], 1))
+
+# Visualize the distance matrix
+fviz_dist(distE)
+
+# Omit missing values
+avianmeasurements_data <- na.omit(avianmeasurements_data)
+
+k_values <- 1:10
+
+
+# Calculate the total within-cluster sum of squares for each k
+wss <- sapply(k_values, function(k) {
+  kmeans_model <- kmeans(avianmeasurements_data, centers = k, nstart = 20, iter.max = 15)
+  return(kmeans_model$tot.withinss)
+})
+
+# Plot the elbow plot
+plot(k_values, wss, type="b", pch=19, frame=FALSE, xlab="Number of Clusters K", ylab="Total within-clusters sum of squares")
+fviz_nbclust(avianmeasurements_data, kmeans, method="wss") + geom_vline(xintercept=3, linetype=5, col="darkred")
+
+
+
+```
+
+Optimal k-value would be 3 determined by the elbow plot. In the elbow plot, you can observe a rapid decrease in the within-cluster sum of squares as it increased the number of clusters from 1 to 3. However, beyond k=3, the rate of decrease started to slow down, forming an 'elbow' in the plot. This suggests that k=3 is a reasonable choice, as it captures a significant portion of the variability in the data while avoiding excessive complexity.
+
+### Part b - Cluster Visualization
+
+```{r}
+avianmeasurements_data <- na.omit(avianmeasurements_data)
+
+df <- na.omit(df)
+km.res <- kmeans(df, 3, nstart = 25)
+
+nrow_cluster <- length(km.res$cluster)
+
+avianmeasurements_data <- avianmeasurements_data[1:nrow_cluster, ]
+
+df_member <- cbind(avianmeasurements_data, cluster = km.res$cluster)
+
+# Visualize clusters without deprecated arguments
+fviz_cluster(km.res, data = df_member, geom = "point", ellipse.type = "norm")
+fviz_cluster(km.res, data = df_member,
+             palette=c("red", "blue", "darkgreen"),
+             ellipse.type = "euclid",
+             star.plot = T,
+             repel = T,
+             ggtheme = theme())
+```
+
+### Part c - Mean, median and mode of clusters
+
+```{r}
+
+avianmeasurements_data <- na.omit(avianmeasurements_data)
+km.res <- kmeans(avianmeasurements_data, centers = 3, nstart = 20, iter.max = 15)
+df_member <- cbind(avianmeasurements_data, cluster = km.res$cluster)
+
+#Mean
+mean_results <- aggregate(. ~ cluster, data = as.data.frame(df_member), mean)
+print(mean_results)
+#Median 
+median_results <- aggregate(. ~ cluster, data = as.data.frame(df_member), median)
+print(median_results)
+
+#Mode 
+mode_results <- aggregate(. ~ cluster, data = as.data.frame(df_member), mode)
+
+print(mode_results)
+```
+
+### Part d - Another k-value Analysis
+
+##### Elbow Plot 2
+
+```{r}
+
+df <- scale(avianmeasurements_data)
+set.seed(123)
+
+# Sample 10 rows from the scaled data
+avia <- sample(1:nrow(df), 10)
+avia1 <- df[avia,]
+
+distE <- dist(avia1, method='euclidean')
+print(round(as.matrix(distE)[1:4, 1:4], 1))
+
+# Visualize the distance matrix
+fviz_dist(distE)
+
+# Omit missing values
+avianmeasurements_data <- na.omit(avianmeasurements_data)
+
+k_values <- 1:10
+
+
+# Calculate the total within-cluster sum of squares for each k
+wss <- sapply(k_values, function(k) {
+  kmeans_model <- kmeans(avianmeasurements_data, centers = k, nstart = 20, iter.max = 15)
+  return(kmeans_model$tot.withinss)
+})
+
+# Plot the elbow plot
+plot(k_values, wss, type="b", pch=19, frame=FALSE, xlab="Number of Clusters K", ylab="Total within-clusters sum of squares")
+fviz_nbclust(avianmeasurements_data, kmeans, method="wss") + geom_vline(xintercept=4, linetype=5, col="darkred")
+```
+
+Optimal k-value would be 4 determined by the elbow plot. In the elbow plot, you can observe a rapid decrease in the within-cluster sum of squares as it increased the number of clusters from 1 to 4. However, beyond k=4, the rate of decrease started to slow down, forming an 'elbow' in the plot. This suggests that k=4 is a reasonable choice, as it captures a significant portion of the variability in the data while avoiding excessive complexity.
+
+#### Cluster Visualization
+
+```{r}
+df[is.na(df)] <- 0
+df[is.infinite(df)] <- NA
+km.res <- kmeans(df, 4, nstart = 25)
+km.res
+
+km.res$totss
+km.res$betweenss
+
+km.res$betweenss/km.res$totss
+
+df_member <- cbind(avianmeasurements_data, cluster = km.res$cluster)
+head(df_member)
+
+fviz_cluster(km.res, data=avianmeasurements_data)
+
+fviz_cluster(km.res, data = avianmeasurements_data,
+             palette=c("red", "blue", "darkgreen", "black"),
+             ellipse.type = "euclid",
+             star.plot = T,
+             repel = T,
+             ggtheme = theme())
+
+aggregate(avianmeasurements_data, by=list(cluster=df_member$cluster), mean)
+aggregate(avianmeasurements_data, by=list(cluster=df_member$cluster), median)
+aggregate(avianmeasurements_data, by=list(cluster=df_member$cluster), mode)
+```
+
+#### Mean, median and mode of clusters
+
+```{r}
+#Row 272 and row 3 contain missing values.
+avianmeasurements_data <- na.omit(avianmeasurements_data)
+km.res <- kmeans(avianmeasurements_data, centers = 4, nstart = 20, iter.max = 15)
+df_member <- cbind(avianmeasurements_data, cluster = km.res$cluster)
+
+#Mean
+mean_results <- aggregate(. ~ cluster, data = as.data.frame(df_member), mean)
+print(mean_results)
+
+#Median 
+median_results <- aggregate(. ~ cluster, data = as.data.frame(df_member), median)
+print(median_results)
+
+#Mode 
+mode_results <- aggregate(. ~ cluster, data = as.data.frame(df_member), mode)
+
+print(mode_results)
+```
+
+### Part e - Comparison and Justification
+
+The data above shows that the optimal k-value is 3. Looking at both elbow plots, you can conclude that 3 clusters is beneficial because the rate of decrease in WSS slows down significantly more than at the k-value of 4. You can also see the overlap in clusters in analysis #2 in the cluster visualization. This proves that the k-value of 4 is too large and creates more clusters than actually exist in the data.
+
+## Hierarchical clustering (AGNES)
+
+### Part a - Dendrogram
+
+```{r}
+library(factoextra)
+library(cluster)
+
+avianmeasurements_scaled <- scale(avianmeasurements_data)
+
+#### Find the dis(similarity) 
+res.dist <- dist(avianmeasurements_scaled, method = "euclidean")
+as.matrix(res.dist)[1:6, 1:6] #Distances between first 6 observations
+
+### Conduct the HC with the agnes()
+res.agnes <- agnes(avianmeasurements_scaled, method = "ward")
+
+#### Visualize the dendrogram
+fviz_dend(res.agnes, cex = 0.5)
+```
+
+### Part b - Cophentic Correlation
+
+```{r}
+### Finding the cophenetic distances (height)
+res.coph <- cophenetic(res.agnes)
+
+### Comparing cophenetic distances with original distances
+cor(res.dist, res.coph)
+```
+
+The cophenetic correlation is 0.8391831, suggesting that the hierarchical clustering dendrogram provides a strong representation of the original distances in the AvianMeasurements dataset.
+
+### Part c/d - K-value Dendrogram
+
+The dendrogram above shows three distinct clusters on the dendrogram. Showing the appropriate value of k would be 3.
+
+```{r}
+#### Cutting the dendrogram
+k <- 3  # You can choose an appropriate value based on the dendrogram
+grp <- cutree(res.agnes, k = k)
+
+#### Identifying groups
+head(grp)
+# Displaying some observations from the first group
+avianmeasurements_data[grp == 1, ]
+
+#### Plotting using color
+fviz_dend(res.agnes, k = k, cex = 0.5, 
+         k_colors = c("#00AFBB", "#E7B800", "#FC4E07"), 
+         color_labels_by_k = TRUE, rect = TRUE)
+
+### Visualizing results as a scatter plot
+fviz_cluster(list(data = avianmeasurements_scaled, cluster = grp), 
+             palette = c("#00AFBB", "#E7B800", "#FC4E07"),
+             ellipse.type = "convex", repel = TRUE, show.clust.cent = FALSE, 
+             ggtheme = theme_minimal())
+```
+
+## Hierarchical clustering (DIANA)
+
+### Part a - Dendrogram
+
+```{r}
+library(factoextra)
+library(cluster)
+
+# Assuming avianmeasurements_data is your dataset
+avianmeasurements_scaled <- scale(avianmeasurements_data)
+
+#### Find the dis(similarity) 
+res.dist_diana <- dist(avianmeasurements_scaled, method = "euclidean")
+as.matrix(res.dist_diana)[1:6, 1:6] # Distances between first 6 observations
+
+### Conduct the HC with the diana()
+res.diana <- diana(avianmeasurements_scaled, stand = TRUE, metric = "euclidean")
+
+#### Visualize the dendrogram
+fviz_dend(res.diana, cex = 0.5)
+```
+
+### Part b - Cophentic Correlation
+
+```{r}
+### Finding the cophenetic distances (height)
+res.coph_diana <- cophenetic(res.diana)
+
+### Comparing cophenetic distances with original distances
+cor(res.dist_diana, res.coph_diana)
+```
+
+The cophenetic correlation is 0.0006812, suggesting that the hierarchical clustering dendrogram provides a strong representation of the original distances in the AvianMeasurements dataset.
+
+### Part c/d - K-value Dendrogram
+
+The dendrogram above shows six clusters on the dendrogram. Showing the appropriate value of k would be six. The clusters are show by color below.
+
+```{r}
+#### Cutting the dendrogram
+k_diana <- 6  # Choose an appropriate value based on the dendrogram
+grp_diana <- cutree(res.diana, k = k_diana)
+
+#### Identifying groups
+head(grp_diana)
+# Displaying some observations from the first group
+avianmeasurements_data[grp_diana == 1, ]
+
+#### Plotting using color with six distinct colors
+fviz_dend(res.diana, k = k_diana, cex = 0.5, 
+         k_colors = c("#00AFBB", "#E7B800", "#FC4E07", "#6A3D9A", "#FF7F00", "#1F78B4"), 
+         color_labels_by_k = TRUE, rect = TRUE)
+
+### Visualizing results as a scatter plot
+fviz_cluster(list(data = avianmeasurements_scaled, cluster = grp_diana), 
+             palette = c("#00AFBB", "#E7B800", "#FC4E07", "#6A3D9A", "#FF7F00", "#1F78B4"),
+             ellipse.type = "convex", repel = TRUE, show.clust.cent = FALSE, 
+             ggtheme = theme_minimal())
+
+```
+
+### AGNES vs DIANA
+
+The results of this dendrogram is slightly vary from the first dendrogram. AGNES and DIANA suggest different cluster structures for the AvianMeasurements dataset. AGNES proposes three clusters, while DIANA suggests six clusters. However the clustering using AGNES seems to fit the data more appropriately, as the clusters using DIANA seem to be unclear on the scatterplot.
+
+## Clustering Summary
+
+In conclusion a k-value of 3 is most optimal for the data set AvianMeasurements. The k-value of 3 is supported by two analysis where the clusters are clear and distinct. The data also shows that AGNES clustering is preferred because the cophentic correlation is higher.
+
+# Part 2 - Classification using Bagging, Boosting and RF
+
+## Test and Train
+
+```{r}
+
+library(caret)
+library(rpart)
+library(ipred)
+library(dplyr)
+
+
+
+
+abalone <- read.csv("abalone.csv")
+colnames(abalone) <- c("Sex", "Length", "Diameter", "Height", "WholeWeight", "ShuckedWeight", "VisceraWeight", "ShellWeight", "Rings")
+set.seed(123)
+
+
+
+# Create an index for splitting the data (70/30)
+split_index <- createDataPartition(abalone$Sex, p = 0.7, list = FALSE)
+
+# Create the training set
+abalone_train <- abalone[split_index, ]
+
+# Create the test set
+abalone_test <- abalone[-split_index, ]
+
+```
+
+## Bagging
+
+```{r}
+library(caret)
+library(ggplot2)
+
+#Change characters to numbers
+abalone_train$Sex <- factor(abalone_train$Sex)
+abalone_test$Sex <- factor(abalone_test$Sex)
+# Train a bagging model
+abalone_bagging <- bagging(formula = Sex ~ ., data = abalone_train, mfinal = 10,
+                           control = rpart.control(maxdepth = 1))
+
+#Predictions on the test set
+abalone_pred <- predict(abalone_bagging, newdata = abalone_test)
+
+#Model using a confusion matrix
+conf_matrix <- table(abalone_pred, abalone_test$Sex, dnn = c("Predicted Class", "Observed Class"))
+conf_matrix
+
+#Accuracy is .1445687
+# Calculate accuracy
+accuracy <- sum(diag(conf_matrix)) / sum(conf_matrix)
+accuracy
+```
+
+##Boosting
+
+```{r}
+library(adabag)
+library(caret)
+
+abalone_train$Sex <- factor(abalone_train$Sex)
+abalone_test$Sex <- factor(abalone_test$Sex)
+
+# Train an AdaBoost model
+abalone_adaboost <- boosting(Sex ~ ., data = abalone_train, mfinal = 10)
+
+#Predictions on the test set
+abalone_pred <- predict(abalone_adaboost, newdata = abalone_test)
+
+
+#Model using a confusion matrix
+conf_matrix <- table(abalone_pred$class, abalone_test$Sex, dnn = c("Predicted Class", "Observed Class"))
+conf_matrix
+
+#Accuracy is .5463259
+accuracy <- sum(diag(conf_matrix)) / sum(conf_matrix)
+accuracy
+```
+
+## Random Forest
+
+```{r}
+
+library(randomForest)
+library(caret)
+
+abalone_train$Sex <- factor(abalone_train$Sex)
+abalone_test$Sex <- factor(abalone_test$Sex)
+
+#Train Random Forest model
+abalone_rf <- randomForest(Sex ~ ., data = abalone_train, ntree = 100)
+
+#Predictions on the test set
+abalone_pred <- predict(abalone_rf, newdata = abalone_test)
+
+#Model using a confusion matrix
+conf_matrix <- table(abalone_pred, abalone_test$Sex, dnn = c("Predicted Class", "Observed Class"))
+conf_matrix
+
+#Accuracy is 0.5463259
+accuracy <- sum(diag(conf_matrix)) / sum(conf_matrix)
+accuracy
+```
+
+## Comparison
+
+In comparing the three ensemble learning models---Bagging, Boosting, and Random Forest---applied to the Abalone dataset, distinct characteristics and performance metrics emerge. Random Forest exhibited the highest accuracy among the models, reaching 54.63%, followed closely by Boosting with the same accuracy and Bagging with a considerably lower accuracy of 14.46%. Random Forest and Bagging demonstrated resilience to noisy data and tended to be less prone to overfitting due to their ensemble nature, with Random Forest showing the highest robustness.
